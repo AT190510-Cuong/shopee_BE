@@ -1,5 +1,6 @@
 package com.actvn.Shopee_BE.security.jwt;
 
+import com.actvn.Shopee_BE.security.service.UserDetailServiceImpl;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,15 +28,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 //    }
     @Autowired
     private JwtUtils jwtUtils;
-
-//    @Autowired
-//    private UserDetails userDetails;
-
-
     @Autowired
-    private UserDetailsService userDetailsService;
-
-
+    private UserDetailServiceImpl userDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {

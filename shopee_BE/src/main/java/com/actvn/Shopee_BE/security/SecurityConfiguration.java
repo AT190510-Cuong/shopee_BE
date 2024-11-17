@@ -5,12 +5,14 @@ import com.actvn.Shopee_BE.entity.Role;
 import com.actvn.Shopee_BE.repository.RoleRepository;
 import com.actvn.Shopee_BE.security.jwt.AuthEntryPointJwt;
 import com.actvn.Shopee_BE.security.jwt.AuthTokenFilter;
+import com.actvn.Shopee_BE.security.service.UserDetailServiceImpl;
 import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -29,7 +31,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+//@EnableMethodSecurity
 public class SecurityConfiguration {
 
     private static final Logger logger = org.slf4j.LoggerFactory.getLogger(SecurityConfiguration.class);
@@ -38,19 +40,23 @@ public class SecurityConfiguration {
 
 
     @Autowired
+    private UserDetailServiceImpl userDetailService;
+    @Autowired
     private RoleRepository roleRepository;
     @Autowired
     private AuthEntryPointJwt unauthEntryPointJwt;
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests((requests) ->
-                requests.requestMatchers("/api/auth/signin").permitAll()
-                        .requestMatchers("/api/auth/signup").permitAll()
+                requests.requestMatchers("/api/auth/**").permitAll()
+//                        .requestMatchers("/api/auth/signup").permitAll()
                         .anyRequest().authenticated()
 
 
 //                requests.anyRequest().authenticated()
         );
+
+        http.authenticationProvider(authenticationProvider());
 //        http.authorizeHttpRequests(request -> {
 //                request.requestMatchers("/h2-console/**").permitAll()
 //                .requestMatchers("/signin").permitAll()
@@ -100,23 +106,23 @@ public class SecurityConfiguration {
 
 
 //            JdbcUserDetailsManager manager = (JdbcUserDetailsManager) userDetailsService;
-            UserDetails user1 = User.withUsername("user1").password(passwordEncoder().encode("passwordUser1"))
-                    .roles("USER")
-                    .build();
-            logger.info("user1: {}", user1.getPassword());
-//            System.out.println("user1: " + user1);
-            UserDetails admin = User.withUsername("admin")
-                    .password(passwordEncoder().encode("passwordAdmin"))
-                    .roles("ADMIN")
-                    .build();
-//            JdbcUserDetailsManager manager = (JdbcUserDetailsManager) userDetailsService;
-            logger.info("admin: {}", admin.getPassword());
+//            UserDetails user1 = User.withUsername("user1").password(passwordEncoder().encode("passwordUser1"))
+//                    .roles("USER")
+//                    .build();
+//            logger.info("user1: {}", user1.getPassword());
+////            System.out.println("user1: " + user1);
+//            UserDetails admin = User.withUsername("admin")
+//                    .password(passwordEncoder().encode("passwordAdmin"))
+//                    .roles("ADMIN")
+//                    .build();
+////            JdbcUserDetailsManager manager = (JdbcUserDetailsManager) userDetailsService;
+//            logger.info("admin: {}", admin.getPassword());
 
-            if(userDetailsService instanceof InMemoryUserDetailsManager){
-                InMemoryUserDetailsManager inMemoryUserDetailsManager = (InMemoryUserDetailsManager) userDetailsService;
-                inMemoryUserDetailsManager.createUser(user1);
-                inMemoryUserDetailsManager.createUser(admin);
-            }
+//            if(userDetailsService instanceof InMemoryUserDetailsManager){
+//                InMemoryUserDetailsManager inMemoryUserDetailsManager = (InMemoryUserDetailsManager) userDetailsService;
+//                inMemoryUserDetailsManager.createUser(user1);
+//                inMemoryUserDetailsManager.createUser(admin);
+//            }
 //            JdbcUserDetailsManager userDetailsManager = new JdbcUserDetailsManager(mDataSource);
 //            userDetailsManager.createUser(user1);
 //            userDetailsManager.createUser(admin);
@@ -141,10 +147,6 @@ public class SecurityConfiguration {
 //        return new InMemoryUserDetailsManager(user1, admin);
 //    }
 
-    @Bean
-    public InMemoryUserDetailsManager userDetailsManager(){
-        return new InMemoryUserDetailsManager();
-    }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -154,5 +156,13 @@ public class SecurityConfiguration {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration builder) throws Exception {
         return builder.getAuthenticationManager();
+    }
+
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider(){
+        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
+        authenticationProvider.setUserDetailsService(userDetailService);
+        authenticationProvider.setPasswordEncoder(passwordEncoder());
+        return authenticationProvider;
     }
 }

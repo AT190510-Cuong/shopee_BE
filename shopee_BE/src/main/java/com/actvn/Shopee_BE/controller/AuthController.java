@@ -54,12 +54,14 @@ public class AuthController {
         Authentication authentication ;
         try{
             authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getUsername(),
+                            loginRequest.getPassword())
             );
         } catch (AuthenticationException e) {
             Map<String, Object> map = new HashMap<>();
-            map.put("status", "Bad credentials");
-            map.put("status", 401);
+            map.put("message", "Bad credentials");
+            map.put("status", false);
 //
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(map);
         }
