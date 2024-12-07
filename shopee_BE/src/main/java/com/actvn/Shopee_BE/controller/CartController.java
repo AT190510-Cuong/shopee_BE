@@ -54,4 +54,11 @@ public class CartController {
                 .body( cartService.deleteProductFromCart(CartId, productId)) ;
     }
 
+    @PutMapping("/products/{productId}/quantity/{quantity}")
+    public ResponseEntity<ApiResponse<Object>> updateCartProduct(@PathVariable String productId, @PathVariable int quantity) {
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(cartService.updateProductInCarts(productId, quantity)) ;
+    }
+
+
 }

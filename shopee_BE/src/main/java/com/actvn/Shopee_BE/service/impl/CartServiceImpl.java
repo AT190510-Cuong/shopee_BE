@@ -40,6 +40,13 @@ public class CartServiceImpl implements CartService {
     @Autowired
     private ModelMapper mapper;
 
+    @Autowired
+    private AuthUtil authUtils;
+
+
+    @Autowired
+
+
 
 
     @Override
@@ -68,9 +75,11 @@ public class CartServiceImpl implements CartService {
         newCartItem.setProductPrice(product.getSpecialPrice());
         cartItemRepository.save(newCartItem);
 
-        product.setQuantity(product.getQuantity());
+        product.setQuantity(quantity);
         cart.setTotalPrice(cart.getTotalPrice() + product.getSpecialPrice() * quantity);
-        cartRepository.save(cart);
+        synchronized (this) {
+            cartRepository.save(cart);
+        }
 
         CartResponse cartResponse = mapper.map(cart, CartResponse.class);
         List<CartItem> cartItems = cart.getCartItems();
@@ -96,10 +105,8 @@ public class CartServiceImpl implements CartService {
 
     }
 
-    @Override
-    public void updateProductInCarts(String productId, Integer quantity) {
 
-    }
+
 
     @Override
     public ApiResponse<Object> deleteProductFromCart(String cartId, String productId) {
@@ -111,6 +118,7 @@ public class CartServiceImpl implements CartService {
 
         cart.setTotalPrice(cart.getTotalPrice() - cartItem.getProductPrice() * cartItem.getQuantity());
         cartItemRepository.deleteCartItemByProductIdAndCartId(cartId, productId);
+        cartRepository.save(cart);
 
 
         return ApiResponse.builder()
@@ -152,7 +160,11 @@ public class CartServiceImpl implements CartService {
     public ApiResponse<Object> getAllCarts() {
         List<Cart> carts = cartRepository.findAll();
         if(carts.size() == 0){
-            throw new APIException("Cart not found");
+            return ApiResponse.builder()
+                    .status(HttpStatus.OK)
+                    .message("Cart is not exist")
+                    .body(null)
+                    .build();
         }
 
         List<CartResponse> cartDTOs = carts.stream().map(item -> {
@@ -185,5 +197,68 @@ public class CartServiceImpl implements CartService {
         cart.setUser(authUtil.getUserNameLogged());
         Cart savedCart = cartRepository.save(cart);
         return savedCart;
+    }
+
+    @Override
+    public ApiResponse<Object> updateProductInCarts(String productId, Integer quantity) {
+        String email = authUtils.getEmailLogged();
+        Cart userCart = cartRepository.findCartByEmail(email);
+        String cartId = userCart.getCartId();
+
+        Cart cart = cartRepository.findById(cartId)
+                .orElseThrow(() -> new APIException("Cart " + cartId + " not found"));
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new APIException("Product " + productId + " not found"));
+
+        if (product.getQuantity() == 0) {
+            throw new APIException("Product " + product.getProductName() + " is sold out");
+        }
+
+
+        if (product.getQuantity() < quantity) {
+            throw new APIException("Product" + product.getProductName() + "is less or equal than" + product.getQuantity());
+        }
+
+        CartItem cartItem = cartItemRepository.findCartItemByProductIdAndCartId(cartId, productId);
+        if (cartItem == null) {
+            throw new APIException("Product " + product.getProductName() + " not found in cart " + cartId);
+        }
+
+        int newQuantity = cartItem.getQuantity() + quantity;
+        if (newQuantity <= 0) {
+            throw new APIException("The resulting quantity cannot be negative");
+        }
+        if (newQuantity == 0){
+           deleteProductFromCart(cartId, productId);
+        }else {
+            cartItem.setProductPrice(product.getSpecialPrice());
+            cartItem.setQuantity(newQuantity);
+            cartItem.setDiscount(product.getDiscount());
+            cart.setTotalPrice(cart.getTotalPrice() + product.getSpecialPrice() * quantity);
+            cartRepository.save(cart);
+        }
+
+        CartItem updateItem = cartItemRepository.save(cartItem);
+        if (updateItem.getQuantity() == 0) {
+            cartItemRepository.deleteById(updateItem.getCartItemId());
+        }
+
+        CartResponse cartDTO = mapper.map(cart, CartResponse.class);
+        List<CartItem> cartItems = cart.getCartItems();
+        List<ProductItemResponse> productItemDTOs = cartItems.stream()
+                .map(item -> {
+                    ProductItemResponse dto = mapper.map(item.getProduct(), ProductItemResponse.class);
+                    dto.setQuantity(item.getQuantity());
+                    return dto;
+                }).toList();
+
+        cartDTO.setProducts(productItemDTOs);
+
+        return ApiResponse.builder()
+                .status(HttpStatus.OK)
+                .message("updated")
+                .body(cartDTO)
+                .build();
     }
 }
